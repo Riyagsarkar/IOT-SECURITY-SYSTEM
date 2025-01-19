@@ -1,0 +1,124 @@
+Python
+
+from flask import Flask, render_template, request
+import RPi.GPIO as GPIO
+from picamera import PiCamera
+import time
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
+import os
+import requests
+import json
+
+app = Flask(__name__)
+
+# GPIO setup
+GPIO.setmode(GPIO.BCM)
+pir_pin = 17 
+GPIO.setup(pir_pin, GPIO.IN)
+
+# Camera setup
+camera = PiCamera()
+
+# Email configuration
+sender_email = 'your_email@example.com'
+sender_password = 'your_email_password'
+recipient_email = 'recipient_email@example.com'
+
+# Cloud notification configuration (example: Pushbullet)
+access_token = 'your_pushbullet_access_token'
+pushbullet_url = "https://api.pushbullet.com/v2/pushes"
+
+# Image storage directory
+image_dir = '/path/to/images/'
+
+# Global variables
+motion_detected = False
+
+def capture_image():
+    """Captures an image and saves it to the specified directory."""
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = f"image_{timestamp}.jpg"
+    filepath = os.path.join(image_dir, filename)
+    camera.capture(filepath)
+    return filepath
+
+def send_email_alert(image_path):
+    """Sends an email alert with the captured image."""
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = recipient_email
+    msg['Subject'] = 'Motion Detected!'
+
+    body = "Motion detected at: " + time.strftime("%Y-%m-%d %H:%M:%S")
+    msg.attach(MIMEText(body, 'plain'))
+
+    with open(image_path, 'rb') as f:
+        img_data = f.read()
+    image = MIMEImage(img_data, name=os.path.basename(image_path))
+    msg.attach(image)
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, recipient_email, msg.as_string())
+        server.quit()
+        print("Email alert sent successfully!")
+    except Exception as e:
+        print(f"Error sending email: {e}")
+
+def send_cloud_notification():
+    """Sends a notification to a cloud service (example: Pushbullet)."""
+    headers = {"Authorization": f"Bearer {access_token}"}
+    payload = {
+        "type": "note",
+        "title": "Motion Detected!",
+        "body": "A motion event has been detected."
+    }
+    try:
+        response = requests.post(pushbullet_url, headers=headers, json=payload)
+        response.raise_for_status()
+        print("Cloud notification sent successfully!")
+    except Exception as e:
+        print(f"Error sending cloud notification: {e}")
+
+@app.route('/')
+def index():
+    """Displays the main page (optional)."""
+    global motion_detected
+    return render_template('index.html', motion_detected=motion_detected)
+
+@app.route('/settings', methods=['GET', 'POST']) 
+def settings():
+    """Handles settings configuration (optional)."""
+    # Implement settings handling here (e.g., email, notification settings)
+    return render_template('settings.html') 
+
+def main_loop():
+    """Main loop for motion detection and alert handling."""
+    global motion_detected
+    while True:
+        if GPIO.input(pir_pin):
+            if not motion_detected:
+                motion_detected = True
+                print("Motion detected!")
+                image_path = capture_image()
+                send_email_alert(image_path)
+                send_cloud_notification() 
+            else:
+                print("Motion still detected.")
+        else:
+            motion_detected = False
+            print("No motion detected.")
+        time.sleep(1)
+
+if __name__ == '__main__':
+    try:
+        main_loop()
+    except KeyboardInterrupt:
+        print("Exiting...")
+        GPIO.cleanup()
+        camera.close()
