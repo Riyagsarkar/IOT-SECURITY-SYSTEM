@@ -1,0 +1,44 @@
+Python
+
+import RPi.GPIO as GPIO
+from picamera import PiCamera
+import time
+
+# Set GPIO mode
+GPIO.setmode(GPIO.BCM)
+
+# Define GPIO pins
+pir_pin = 17  # Change to your PIR pin
+
+# Set PIR pin as input
+GPIO.setup(pir_pin, GPIO.IN)
+
+# Initialize camera
+camera = PiCamera()
+
+try:
+    while True:
+        # Check for motion
+        if GPIO.input(pir_pin):
+            print("Motion detected!")
+
+            # Capture image
+            camera.capture('image.jpg')
+            print("Image captured!")
+
+            # Optional: Trigger alarm (buzzer or LED)
+            # GPIO.output(buzzer_pin, GPIO.HIGH)  # Turn on buzzer
+            # time.sleep(1)
+            # GPIO.output(buzzer_pin, GPIO.LOW)  # Turn off buzzer
+
+            # Wait for a short period to prevent multiple captures
+            time.sleep(5)
+
+        else:
+            print("No motion detected.")
+
+except KeyboardInterrupt:
+    print("Exiting...")
+
+# Clean up GPIO
+GPIO.cleanup()
