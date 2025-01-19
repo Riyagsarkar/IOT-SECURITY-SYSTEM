@@ -1,0 +1,68 @@
+Python
+
+import RPi.GPIO as GPIO
+from picamera import PiCamera
+import time
+import requests
+# Uncomment the following line if using Twilio
+# from twilio.rest import Client
+
+# Set up GPIO
+GPIO.setmode(GPIO.BCM)
+pir_pin = 17  # Change to your PIR pin
+GPIO.setup(pir_pin, GPIO.IN)
+
+# Initialize camera
+camera = PiCamera()
+
+# Twilio credentials (if using Twilio)
+# account_sid = 'YOUR_TWILIO_ACCOUNT_SID'
+# auth_token = 'YOUR_TWILIO_AUTH_TOKEN'
+# twilio_number = 'YOUR_TWILIO_PHONE_NUMBER'
+# your_number = 'YOUR_PHONE_NUMBER'
+# client = Client(account_sid, auth_token)
+
+# Pushbullet credentials (if using Pushbullet)
+# access_token = 'YOUR_PUSHBULLET_ACCESS_TOKEN'
+
+try:
+    while True:
+        if GPIO.input(pir_pin):
+            print("Motion detected!")
+
+            # Capture image
+            camera.capture('image.jpg')
+            print("Image captured!")
+
+            # Send alert (choose one method)
+
+            # Send SMS alert using Twilio
+            # message = client.messages \
+            #     .create(
+            #         body="Motion detected!",
+            #         from_=twilio_number,
+            #         to=your_number
+            #     )
+
+            # Send notification using Pushbullet
+            # url = "https://api.pushbullet.com/v2/pushes"
+            # headers = {"Authorization": f"Bearer {access_token}"}
+            # payload = {
+            #     "type": "note",
+            #     "title": "Motion Detected!",
+            #     "body": "A motion event has been detected."
+            # }
+            # response = requests.post(url, headers=headers, json=payload)
+
+            print("Alert sent!")
+
+            # Wait for a short period
+            time.sleep(5)
+
+        else:
+            print("No motion detected.")
+
+except KeyboardInterrupt:
+    print("Exiting...")
+
+GPIO.cleanup()
